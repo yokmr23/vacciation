@@ -157,7 +157,7 @@ class MainWindow(QWidget):
         super(MainWindow,self).__init__(*args,**kwargs)
         self.canvas = MplCanvas(self,width=6,height=7,tight_layout=False)
         self.combobox = QComboBox(self)
-        self.combobox.addItems(['都道府県名','市町村名'])
+        self.combobox.addItems(['都道府県名','市区町村名'])
         # self.label1 = QLabel('都道府県名')
         # self.label2 = QLabel('都道府県あるいは市町村名')
         # self.input1 = QLineEdit()
@@ -178,7 +178,7 @@ class MainWindow(QWidget):
         layout.addLayout(hlayout)
         self.setLayout(layout)
         self.ok.clicked.connect(self.a)
-        self.canvas.show_population('市町村名','宇部市')
+        self.canvas.show_population('都道府県名','北海道')
         self.input2.returnPressed.connect(self.a)
         self.show()
     def a(self):
