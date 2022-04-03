@@ -155,10 +155,10 @@ class PlotWidget(QWidget):
             if y0 == y1:
                 str0 = '変化なし'
             else:
-                str0 = f'↓ {y0-y1:,}'
+                str0 = f'↓ {y1-y0:,}'
 
-        self.label1.setText(f'新規感染者数　{y0:,}人')
-        self.label4.setText(f'前回比　{str0:}人')
+        self.label1.setText(f'新規感染者数 {y0:,}人')
+        self.label4.setText(f'前回比 {str0:}人')
         # 今週の感染者数の一日あたりの平均値(四捨五入)を求める
         ave_one_week = int(
             df.loc[n-6:n, pref_alphabet].mean()+0.5)
@@ -172,8 +172,8 @@ class PlotWidget(QWidget):
                 str0 == '変化なし'
             else:
                 str0 = f'↓ {ave_one_week-ave_before_week:,}'
-        self.label2.setText(f'一週間の平均　{ave_one_week:,}人/日')
-        self.label3.setText(f'前週の平均　{ave_before_week:,}人/日')
+        self.label2.setText(f'一週間の平均 {ave_one_week:,}人/日')
+        self.label3.setText(f'前週の平均 {ave_before_week:,}人/日')
         self.label5.setText(f'前週平均比 {str0}人/日')
         # print(y0, y1)
         self.ax.cla()
@@ -222,6 +222,8 @@ class PlotWidget(QWidget):
                 self.ax.annotate(
                     f'{y.loc[i]:,}',
                     xy=(x.loc[i], y.loc[i]),
+                    xytext=(0, 2),
+                    textcoords='offset points',
                     ha='center')
         self.ax.grid()
         self.canvas.draw()
