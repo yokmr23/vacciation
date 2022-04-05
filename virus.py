@@ -1,25 +1,27 @@
 import pandas as pd
+from datetime import date
 from matplotlib import pyplot as plt
 from matplotlib.dates import SU
 import matplotlib.dates as mdates
-# from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from PySide6.QtCore import Signal
 from PySide6 import QtCore
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QApplication,
     QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
     QComboBox,
     QLabel,
     QButtonGroup,
     QGridLayout,
     QPushButton,
     QSlider,
+    QToolTip,
 )
 from matplotlib.dates import DayLocator, WeekdayLocator
+
+LINUX_DATE = date(1970, 1, 1).toordinal()
 
 df = pd.read_csv(
     'https://covid19.mhlw.go.jp/public/opendata/'
@@ -64,15 +66,16 @@ class ToolPanel(QWidget):
 class PlotWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-
+        self.tooltip = QToolTip()
+        self.pref_alphabet = 'ALL'
         self.fig = plt.Figure(figsize=(5, 3), dpi=100, tight_layout=True)
         self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
         self.toolpanel = ToolPanel(self)
         self.slider = QSlider(QtCore.Qt.Horizontal, self)
-        self.slider.setMinimum(100)
-        self.slider.setMinimum(100)
+        self.slider.setMaximum(100)
+        self.slider.setMinimum(0)
         self.slider.setValue(100)
         self.slider.setSingleStep(4)
         # layout = QVBoxLayout()
@@ -85,27 +88,19 @@ class PlotWidget(QWidget):
         self.label4 = QLabel(self)  # 前回比表示
         self.label5 = QLabel(self)  # 前週平均比
         # create layout
-        hlayout = QHBoxLayout()
-        hlayout1 = QHBoxLayout()
-        hlayout2 = QHBoxLayout()
-        hlayout.addWidget(self.combobox)    # 都道府県名設定
-        hlayout.addWidget(self.label)
-        hlayout1.addWidget(self.label1)
-        hlayout1.addWidget(self.label2)
-        hlayout1.addWidget(self.label3)
-        hlayout2.addWidget(self.label4)
-        hlayout2.addWidget(self.label5)
-        vlayout = QVBoxLayout()
-        vlayout.addWidget(self.toolbar)
-        vlayout.addWidget(self.toolpanel)
-        # vlayout.addWidget(self.label1)
-        vlayout.addLayout(hlayout1)
-        vlayout.addLayout(hlayout2)
-        # vlayout.addWidget(self.view)
-        vlayout.addWidget(self.canvas)
-        vlayout.addWidget(self.slider)
-        vlayout.addLayout(hlayout)
-        self.setLayout(vlayout)
+        glayout = QGridLayout()
+        glayout.addWidget(self.toolbar, 0, 0, 1, 3)
+        glayout.addWidget(self.toolpanel, 1, 0, 1, 3)
+        glayout.addWidget(self.label1, 2, 0)
+        glayout.addWidget(self.label2, 2, 1)
+        glayout.addWidget(self.label3, 2, 2)
+        glayout.addWidget(self.label4, 3, 0)
+        glayout.addWidget(self.label5, 3, 1)
+        glayout.addWidget(self.canvas, 4, 0, 1, 3)
+        glayout.addWidget(self.slider, 5, 0, 1, 3)
+        glayout.addWidget(self.combobox, 6, 0)
+        glayout.addWidget(self.label, 6, 1)
+        self.setLayout(glayout)
 
         self.combobox.setEditable(False)
         # コンボボックスの選択肢を追加
@@ -115,9 +110,37 @@ class PlotWidget(QWidget):
         self.combobox.currentTextChanged.connect(self.prefecture_num)
         self.toolpanel.button_clicked.connect(self.changeButton)
         self.slider.valueChanged.connect(self.prefecture_num)
+        self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
+
+    def hover(self, event):
+        if self.bar is None:
+            return
+        if event.xdata is not None:
+            # x = int(event.xdata)+LINUX_DATE
+            x = int(event.xdata)
+            if event.xdata - x > 0.4:
+                if event.xdata - x < 0.6:
+                    self.tooltip.hideText()
+                    return
+                else:
+                    x += 1
+            x += LINUX_DATE
+            ymd = date.fromordinal(x)
+            ymd = pd.to_datetime(ymd)  # x軸の年月日
+            df1 = df[df.Date == ymd]    # その日の感染者数日の集合を取得
+            y = df1[self.pref_alphabet].values[0]
+            if y > event.ydata:
+                ymd = str(ymd)
+                ymd = ymd[2:10]
+                text = f'{ymd}\n{y:,}'
+                self.tooltip.showText(QCursor().pos(), text)
+                # print(QCursor.pos())
+            else:
+                self.tooltip.hideText()
+        else:
+            self.tooltip.hideText()
 
     def changeButton(self):
-        # self.slider.setValue = 100
         id = self.toolpanel.get_id()
         if id == 4:
             self.slider.setMaximum(100)
@@ -135,8 +158,8 @@ class PlotWidget(QWidget):
             pref_alphabet = pref_alphabet.values[0]
         except IndexError:
             return
-        # print('result={}'.format(pref_alphabet))
-        self.draw1(pref_alphabet, prefecture)
+        self.pref_alphabet = pref_alphabet
+        self.draw1(self.pref_alphabet, prefecture)
 
     def draw1(self, pref_alphabet, prefecture):
         id = self.toolpanel.get_id()
@@ -216,14 +239,17 @@ class PlotWidget(QWidget):
         x = x['Date']
         y = df.iloc[xmin:xmax]
         y = y[pref_alphabet]
-        self.ax.bar(x, y, zorder=3)
+        self.bar = self.ax.bar(x, y, zorder=3)
         if id == 0:
             for i in range(xmin, xmax):
                 self.ax.annotate(
                     f'{y.loc[i]:,}',
                     xy=(x.loc[i], y.loc[i]),
-                    xytext=(0, 2),
+                    xytext=(0, -10),
+                    fontsize=8,
+                    color='white',
                     textcoords='offset points',
+                    bbox={'boxstyle': 'round,pad=0.1', 'ec': 'None'},
                     ha='center')
         self.ax.grid()
         self.canvas.draw()
