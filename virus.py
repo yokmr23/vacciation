@@ -115,7 +115,7 @@ class PlotWidget(QWidget):
     def hover(self, event):
         if self.bar is None:
             return
-        if event.xdata is not None:
+        if event.xdata is not None and event.ydata is not None:
             # x = int(event.xdata)+LINUX_DATE
             x = int(event.xdata)
             if event.xdata - x > 0.4:
@@ -128,13 +128,18 @@ class PlotWidget(QWidget):
             ymd = date.fromordinal(x)
             ymd = pd.to_datetime(ymd)  # x軸の年月日
             df1 = df[df.Date == ymd]    # その日の感染者数日の集合を取得
-            y = df1[self.pref_alphabet].values[0]
+            try:
+                y = df1[self.pref_alphabet].values[0]
+            except IndexError:
+                self.tooltip.hideText()
+                return
             if y > event.ydata:
                 ymd = str(ymd)
                 ymd = ymd[2:10]
-                text = f'{ymd}\n{y:,}'
+                text = f'{ymd}\n {y:,}'
                 self.tooltip.showText(QCursor().pos(), text)
-                # print(QCursor.pos())
+                # print(f'QCusor:{QCursor.pos()}')
+                # print(f'x,y:{event.x,event.y}')
             else:
                 self.tooltip.hideText()
         else:
