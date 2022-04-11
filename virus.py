@@ -113,33 +113,36 @@ class PlotWidget(QWidget):
         self.fig.canvas.mpl_connect("motion_notify_event", self.hover)
 
     def hover(self, event):
-        if self.bar is None:
+        if self.bar is None or self.ax is not event.inaxes:
+            self.tooltip.hideText()
             return
+        # print(event.canvas, event.guiEvent)
         if event.xdata is not None and event.ydata is not None:
-            # x = int(event.xdata)+LINUX_DATE
+            w = self.bar.patches[0].get_width()  # 棒グラフの幅
             x = int(event.xdata)
-            if event.xdata - x > 0.4:
-                if event.xdata - x < 0.6:
-                    self.tooltip.hideText()
-                    return
-                else:
-                    x += 1
-            x += LINUX_DATE
-            ymd = date.fromordinal(x)
-            ymd = pd.to_datetime(ymd)  # x軸の年月日
-            df1 = df[df.Date == ymd]    # その日の感染者数日の集合を取得
-            try:
-                y = df1[self.pref_alphabet].values[0]
-            except IndexError:
+            dif = event.xdata - x
+            if dif > w/2 and dif < 1-w/2:
                 self.tooltip.hideText()
                 return
-            if y > event.ydata:
-                ymd = str(ymd)
-                ymd = ymd[2:10]
+            if dif > 1-w/2:
+                x += 1
+            x += LINUX_DATE
+            # ymd = date.fromordinal(x)
+            ymd = pd.to_datetime(date.fromordinal(x))  # x軸の年月日
+            df1 = df[df.Date == ymd]    # その日の感染者数日の集合を取得
+            try:
+                # 感染者数を求める
+                y = df1[self.pref_alphabet].values[0]
+            except IndexError:
+                # 感染者数を得られなければ
+                self.tooltip.hideText()
+                return
+            if y > event.ydata and event.ydata > 0:
+                # マウスカーソルが棒グラうの高さ内にあれば
+                ymd = str(ymd)[2:10]
+                # ymd = ymd[2:10]
                 text = f'{ymd}\n {y:,}'
                 self.tooltip.showText(QCursor().pos(), text)
-                # print(f'QCusor:{QCursor.pos()}')
-                # print(f'x,y:{event.x,event.y}')
             else:
                 self.tooltip.hideText()
         else:
