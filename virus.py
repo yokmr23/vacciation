@@ -1,11 +1,13 @@
 import pandas as pd
+import sys
 from datetime import date
 from matplotlib import pyplot as plt
 from matplotlib.dates import SU
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-from PySide6.QtCore import Signal
+from PySide6.QtGui import QAction
+from PySide6.QtCore import Signal, Slot
 from PySide6 import QtCore
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
@@ -18,6 +20,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSlider,
     QToolTip,
+    QMainWindow,
 )
 from matplotlib.dates import DayLocator, WeekdayLocator
 
@@ -68,7 +71,7 @@ class PlotWidget(QWidget):
         super().__init__(parent)
         self.tooltip = QToolTip()
         self.pref_alphabet = 'ALL'
-        self.fig = plt.Figure(figsize=(5, 3), dpi=100, tight_layout=True)
+        self.fig = plt.Figure(figsize=(5, 4), dpi=100, tight_layout=True)
         self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
@@ -274,8 +277,31 @@ class PlotWidget(QWidget):
         return xmax, xmin
 
 
-# アプリの実行と終了
-app = QApplication()
-window = PlotWidget()
-window.show()
-app.exec()
+class MainWindow(QMainWindow):
+    def __init__(self, widget):
+        QMainWindow.__init__(self)
+        self.setWindowTitle("ワクチン摂取")
+        # Menu
+        self.menu = self.menuBar()
+        self.file_menu = self.menu.addMenu("File")
+
+        # Exit QAction
+        exit_action = QAction("Exit", self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.triggered.connect(self.exit_app)
+
+        self.file_menu.addAction(exit_action)
+        self.setCentralWidget(widget)
+
+    @ Slot()
+    def exit_app(self, checked):
+        QApplication.quit()
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    plotwidge = PlotWidget()
+    window = MainWindow(plotwidge)
+    window.resize(800, 600)
+    window.show()
+    sys.exit(app.exec())
