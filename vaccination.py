@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
+    QToolBar,
     QComboBox,
     QLabel,
     QTableWidget,
@@ -27,30 +27,12 @@ from PySide6.QtWidgets import (
     QDialog,
     QTabWidget,
     QMainWindow,
-    QToolTip
+    QToolTip,
+    QGridLayout,
+    QDialogButtonBox,
 )
 
 LINUX_DATE = date(1970, 1, 1).toordinal()
-
-# a=po[(po["都道府県名"]=="山口県")&(po["市区町村名"]=="-")&(po["性別"]=="計")]
-# print(a["人"].values[0])
-
-
-def get_po(pref):
-    match pref:
-        case '北海道':
-            return pref
-        case '東京':
-            return '東京都'
-        case '大阪' | '京都':
-            return pref+'府'
-        case '全国':
-            return '合計'
-    return pref+'県'
-
-
-dpref = pd.read_csv("prefecture_num.csv",
-                    delimiter=',')
 
 
 class Vaccin:
@@ -152,6 +134,18 @@ class Vaccin:
         all = self.pivot_all.loc[len(self.pivot_all)-1]
         return x, all
 
+    def get_po(self, pref):
+        match pref:
+            case '北海道':
+                return pref
+            case '東京':
+                return '東京都'
+            case '大阪' | '京都':
+                return pref+'府'
+            case '全国':
+                return '合計'
+        return pref+'県'
+
 
 class PlotWidget(QWidget):
     def __init__(self, Vaccin, parent=None):
@@ -165,37 +159,28 @@ class PlotWidget(QWidget):
         self.population = -1
         self.vaccin = Vaccin
         self.tooltip = QToolTip()
-        # self.fig = plt.Figure(figsize=(5, 3), dpi=100, tight_layout=True)
         self.fig = plt.Figure(figsize=(5, 4), dpi=100)
-        # self.ax = self.fig.add_subplot(111)
-        # left,bottom,width,height
-        self.ax = self.fig.add_axes([0.18, .18, .68, .75])
+        self.ax = self.fig.add_axes([0.15, .15, .75, .78])
         self.twin_ax = self.ax.twinx()  # y軸右側%を使うため
         self.twin_ax.tick_params()
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
-        # layout = QVBoxLayout()
         self.combobox = QComboBox(self)
-        # self.btn1 = QPushButton('OK')
         self.label = QLabel(self)
         self.label1 = QLabel(self)
-        # create layout
-        layout = QHBoxLayout()
-        layout.addWidget(self.combobox)
-        # layout.addWidget(self.btn1)
-        layout.addWidget(self.label)
-        layout.addWidget(self.label1)
-        vlayout = QVBoxLayout()
-        vlayout.addWidget(self.toolbar)
-        # vlayout.addWidget(self.view)
-        vlayout.addWidget(self.canvas)
-        vlayout.addLayout(layout)
-        self.setLayout(vlayout)
 
         self.combobox.setEditable(True)
+        glayout = QGridLayout(self)
+        glayout.addWidget(self.canvas, 0, 0, 1, 5)
+        glayout.addWidget(self.toolbar, 1, 0, 1, 4)
+        glayout.addWidget(self.combobox, 2, 0)
+        glayout.addWidget(self.label, 2, 1)
+        glayout.addWidget(self.label1, 2, 4)
+        glayout.setVerticalSpacing(5)
+        self.setLayout(glayout)
         # コンボボックスの選択肢を追加
         self.draw1(0, '全国')
-        self.combobox.addItems(dpref['都道府県名'])
+        self.combobox.addItems(self.vaccin.dpref['都道府県名'])
         # self.btn1.clicked.connect(self.prefecture_num)
         self.combobox.currentTextChanged.connect(
             self.prefecture_num)
@@ -286,7 +271,8 @@ class PlotWidget(QWidget):
 
     def prefecture_num(self):
         prefecture = self.combobox.currentText()
-        pref_no = dpref[dpref.都道府県名 == prefecture]['番号']
+        pref_no = self.vaccin.dpref[self.vaccin.dpref.都道府県名 ==
+                                    prefecture]['番号']
         try:
             pref_no = pref_no.values[0]
         except IndexError:
@@ -298,7 +284,7 @@ class PlotWidget(QWidget):
         self.pref_no = pref_no
         self.disp_lin = None
         self.label.setText(f'都道府県コード:{pref_no: ,}')
-        pref = get_po(prefecture)
+        pref = self.vaccin.get_po(prefecture)
         popul = self.vaccin.po[(self.vaccin.po["都道府県名"] == pref)
                                & (self.vaccin.po["性別"] == "計")]
         # 人口を求める
@@ -418,25 +404,46 @@ class TabDialog(QDialog):
         self.setWindowTitle("ワクチン接種")
 
 
+class HelpDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Help')
+        QBtn = QDialogButtonBox.Ok
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.layout = QVBoxLayout()
+        message = QLabel('By Y.Kimura 2022 April')
+        self.layout.addWidget(message)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, widget):
         QMainWindow.__init__(self)
         self.setWindowTitle("ワクチン摂取")
-        # Menu
-        self.menu = self.menuBar()
-        self.file_menu = self.menu.addMenu("File")
-
-        # Exit QAction
-        exit_action = QAction("Exit", self)
-        exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self.exit_app)
-
-        self.file_menu.addAction(exit_action)
+        self.toolbar = QToolBar("Qt bar")
+        self.addToolBar(self.toolbar)
+        button_action = QAction('Exit', self)
+        button_action.triggered.connect(lambda x: self.exit_app("End!"))
+        button_action.setChecked(True)
+        self.toolbar.addAction(button_action)
+        button_action2 = QAction('Help', self)
+        button_action2.triggered.connect(lambda x: self.help('Help'))
+        self.toolbar.addAction(button_action2)
         self.setCentralWidget(widget)
 
     @ Slot()
-    def exit_app(self, checked):
+    def exit_app(self, s):
+        print(s)
         QApplication.quit()
+
+    @ Slot()
+    def help(self, s):
+        print(s)
+        dlg = HelpDialog()
+        dlg.resize(50, 100)
+        dlg.exec()
 
 
 if __name__ == '__main__':
