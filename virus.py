@@ -21,6 +21,10 @@ from PySide6.QtWidgets import (
     QSlider,
     QToolTip,
     QMainWindow,
+    QToolBar,
+    QDialog,
+    QDialogButtonBox,
+    QVBoxLayout,
 )
 from matplotlib.dates import DayLocator, WeekdayLocator
 
@@ -92,17 +96,18 @@ class PlotWidget(QWidget):
         self.label5 = QLabel(self)  # 前週平均比
         # create layout
         glayout = QGridLayout()
-        glayout.addWidget(self.toolbar, 0, 0, 1, 3)
-        glayout.addWidget(self.toolpanel, 1, 0, 1, 3)
-        glayout.addWidget(self.label1, 2, 0)
-        glayout.addWidget(self.label2, 2, 1)
-        glayout.addWidget(self.label3, 2, 2)
-        glayout.addWidget(self.label4, 3, 0)
-        glayout.addWidget(self.label5, 3, 1)
-        glayout.addWidget(self.canvas, 4, 0, 1, 3)
-        glayout.addWidget(self.slider, 5, 0, 1, 3)
-        glayout.addWidget(self.combobox, 6, 0)
-        glayout.addWidget(self.label, 6, 1)
+        glayout.addWidget(self.toolbar, 0, 0, 1, 4)
+        glayout.addWidget(self.toolpanel, 1, 0, 1, 5)
+        glayout.addWidget(self.label1, 2, 0, 1, 1)
+        glayout.addWidget(self.label2, 2, 1, 1, 1)
+        glayout.addWidget(self.label3, 2, 2, 1, 1)
+        glayout.addWidget(self.label4, 3, 0, 1, 1)
+        glayout.addWidget(self.label5, 3, 1, 1, 1)
+        glayout.addWidget(self.canvas, 4, 0, 1, 5)
+        glayout.addWidget(self.slider, 5, 0, 1, 5)
+        glayout.addWidget(self.combobox, 6, 0, 1, 1)
+        glayout.addWidget(self.label, 6, 1, 1, 1)
+        glayout.setSpacing(5)
         self.setLayout(glayout)
 
         self.combobox.setEditable(False)
@@ -277,25 +282,46 @@ class PlotWidget(QWidget):
         return xmax, xmin
 
 
+class HelpDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Help')
+        QBtn = QDialogButtonBox.Ok
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.layout = QVBoxLayout()
+        message = QLabel('By Y.Kimura 2022 April')
+        self.layout.addWidget(message)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, widget):
         QMainWindow.__init__(self)
-        self.setWindowTitle("ワクチン摂取")
-        # Menu
-        self.menu = self.menuBar()
-        self.file_menu = self.menu.addMenu("File")
-
-        # Exit QAction
-        exit_action = QAction("Exit", self)
-        exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self.exit_app)
-
-        self.file_menu.addAction(exit_action)
+        self.setWindowTitle("感染者数")
+        self.toolbar = QToolBar("Qt bar")
+        self.addToolBar(self.toolbar)
+        button_action = QAction('Exit', self)
+        button_action.triggered.connect(lambda x: self.exit_app("End!"))
+        button_action.setChecked(True)
+        self.toolbar.addAction(button_action)
+        button_action2 = QAction('Help', self)
+        button_action2.triggered.connect(lambda x: self.help('Help'))
+        self.toolbar.addAction(button_action2)
         self.setCentralWidget(widget)
 
     @ Slot()
-    def exit_app(self, checked):
+    def exit_app(self, s):
+        print(s)
         QApplication.quit()
+
+    @ Slot()
+    def help(self, s):
+        print(s)
+        dlg = HelpDialog()
+        dlg.resize(50, 100)
+        dlg.exec()
 
 
 if __name__ == '__main__':
