@@ -168,6 +168,10 @@ class PlotWidget(QWidget):
         self.prefecture_num()
 
     def prefecture_num(self):
+        """
+        comboxの都道府県名から都道府県のローマ字表記を求めて
+        draw1関数を呼ぶ
+        """
         prefecture = self.combobox.currentText()
         pref_alphabet = dpref[dpref.都道府県名 == prefecture]['Prefecture']
         try:
@@ -178,6 +182,10 @@ class PlotWidget(QWidget):
         self.draw1(self.pref_alphabet, prefecture)
 
     def draw1(self, pref_alphabet, prefecture):
+        """
+        pref_alphabet: str 都道府県をローマ字　keyとして使う
+        prefecture: str 都道府県を漢字
+        """
         id = self.toolpanel.get_id()
         slider_value = self.slider.value()
         # print(id, slider_value)

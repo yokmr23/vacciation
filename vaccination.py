@@ -134,7 +134,7 @@ class Vaccin:
         all = self.pivot_all.loc[len(self.pivot_all)-1]
         return x, all
 
-    def get_po(self, pref):
+    def get_pre(self, pref):
         match pref:
             case '北海道':
                 return pref
@@ -270,6 +270,10 @@ class PlotWidget(QWidget):
         time.sleep(0.01)
 
     def prefecture_num(self):
+        """
+        comboxの都道府県名から都道府県のローマ字表記を求めて
+        draw1関数を呼ぶ
+        """
         prefecture = self.combobox.currentText()
         pref_no = self.vaccin.dpref[self.vaccin.dpref.都道府県名 ==
                                     prefecture]['番号']
@@ -281,10 +285,14 @@ class PlotWidget(QWidget):
         self.draw1(pref_no, prefecture)
 
     def draw1(self, pref_no, prefecture):
+        """
+        pref_alphabet: str 都道府県をローマ字　keyとして使う
+        prefecture: str 都道府県を漢字
+        """
         self.pref_no = pref_no
         self.disp_lin = None
         self.label.setText(f'都道府県コード:{pref_no: ,}')
-        pref = self.vaccin.get_po(prefecture)
+        pref = self.vaccin.get_pre(prefecture)
         popul = self.vaccin.po[(self.vaccin.po["都道府県名"] == pref)
                                & (self.vaccin.po["性別"] == "計")]
         # 人口を求める
