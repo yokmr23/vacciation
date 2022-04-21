@@ -45,43 +45,50 @@ class Vaccin:
             'https://data.vrs.digital.go.jp'
             '/vaccination/opendata/latest/prefecture.ndjson',
             lines=True, convert_dates=True)
-        self.pivot_x = self.df.pivot_table(index='date',
-                                           columns=['prefecture', 'status'],
-                                           values='count', aggfunc=np.sum)
-        self.pivot_x = self.pivot_x.fillna(0)
+        self.pivot = self.df.pivot_table(index='date',
+                                         columns=['prefecture', 'status'],
+                                         values='count', aggfunc=np.sum,
+                                         fill_value=0)
         # 日付別。都道府県(1回目、２回目、３回目)
-        self.pivot_x = self.pivot_x.cumsum()
+        # self.pivot_sum = self.pivot.cumsum()
 
-        self.pivot_all = self.df.pivot_table(
-            index='date', columns='status', values='count', aggfunc=np.sum)
-        self.pivot_all = self.pivot_all.fillna(0)
+        self.pivot_all = self.df.pivot_table(index='date',
+                                             columns='status',
+                                             values='count',
+                                             aggfunc=np.sum,
+                                             fill_value=0)
         # 日付別、全国(1回目、２回目、３回目)
-        self.pivot_all = self.pivot_all.cumsum()
-
-        # 人口
+        self.col = len(self.pivot_all.columns)  # 接種回数
+        a = np.zeros(self.col).astype(int)
+        b = np.linspace(1, 3, 3).astype(int)
+        arrays = [a, b]
+        a = self.pivot.reset_index()
+        z = self.pivot_all.to_numpy()
+        z = pd.DataFrame(z, columns=arrays)
+        self.pivot = pd.concat([z, a], axis=1)  # 全国と都道府県を一つのテーブルに
+        self.pivot.set_index("date", inplace=True)
+        self.pivot_cumsum = self.pivot.cumsum()  # 日々の累計()
+        # 現在の１回目、２回目、３回目の都道府県別、全国接種累計
+        a = self.pivot_cumsum.reset_index()
+        a = a.loc[len(self.pivot_cumsum)-1]
+        a = a.to_frame().to_numpy()[1:]
+        self.row = int(len(a)/self.col)  # 都道府県及び全国の数
+        a = a.reshape([self.row, self.col]).astype(int)
+        a = pd.DataFrame(a, columns=arrays)[0]
+        # 全国、都道府県の人口を取得
         url = 'https://www.soumu.go.jp/main_content/000762463.xlsx'
         self.po = pd.read_excel(url,
                                 header=2, index_col=0, skipfooter=2)
         self.po1 = self.po[self.po["性別"] == "計"][['都道府県名', '人']]
-        # 都道府県別、ワクチン接種数を1回目、2回目、3回目　のピポットテーブル作成
-        self.piv = self.df.pivot_table(index='prefecture', columns='status',
-                                       values='count', aggfunc=np.sum)
-        self.piv.columns = ['first', 'second', 'third']
-        self.piv = self.piv.reset_index()
-        self.b = pd.DataFrame({'prefecture': [0], 'first': [
-            0], 'second': [0], 'third': [0]})
-        self.piv = pd.concat([self.b, self.piv], ignore_index=True)
-        self.piv.loc[0, 'first':'third'] = self.piv.loc[1:,
-                                                        'first':'third'].sum()
+
+        self.po1 = self.po1.reset_index()[['都道府県名', '人']]
+        self.result = pd.concat([a, self.po1], axis=1)
+        for i in range(1, self.col+1):
+            str0 = f'percent{i}'
+            self.result[str0] = self.result[i]/self.result['人']*100
 
         self.dpref = pd.read_csv("prefecture_num.csv",
                                  delimiter=',')
-        # x = pd.concat([piv, dpref], axis=1)
-        self.po1 = self.po1.reset_index()[['都道府県名', '人']]
-        self.result = pd.concat([self.piv, self.po1], axis=1)
-        self.result['percent1'] = self.result['first']/self.result['人']*100
-        self.result['percent2'] = self.result['second']/self.result['人']*100
-        self.result['percent3'] = self.result['third']/self.result['人']*100
 
     def get_po(self):
         return self.po
@@ -91,17 +98,17 @@ class Vaccin:
         データ長を求める
         戻り値:int データ長
         """
-        return len(self.pivot_x)
+        return len(self.pivot)
 
     def get_day(self):
         """
         ワクチン摂取データの日付の最大値、最小値を求める
         戻り値:int 最大年月日、最小年月日
         """
-        index = self.pivot_x.index
+        index = self.pivot.index
         max = index[len(index)-1]
         min = index[0]
-        return min, max
+        return [min, max]
 
     def get_day_coodinate(self):
         """
@@ -115,24 +122,27 @@ class Vaccin:
 
     def vaccin_(self, pref_num):
         """
-        ワクチン接種
+        ワクチン接種　日々の接種数の累計
         引数:int 全国は0、都道府県名は数値 北海道は1、沖縄は47
         戻り値:pandas
         """
-        if pref_num != 0:
-            return self.pivot_x[pref_num]
-        else:
-            return self.pivot_all
+        return self.pivot_cumsum[pref_num]
+
+    def vaccin_d(self, pre_num):
+        """
+        ワクチン接種 日々の接種数
+        引数:int 全国は0、都道府県名は数値 北海道は1、沖縄は47
+        戻り値:pandas
+        """
+        return self.pivot[pre_num]
+
+    def get_xaxis(self):
+        return self.pivot.reset_index()['date']
 
     def get_lastday(self):
-        a, b = self.get_day()
+        a = self.get_day()
         # lastday = df.loc[len(df)-1, 'date']
-        return str(b)[0:10]
-
-    def get_lastday_result(self):
-        x = self.pivot_x.loc[len(self.pivot_x)-1]
-        all = self.pivot_all.loc[len(self.pivot_all)-1]
-        return x, all
+        return str(a[1])[0:10]
 
     def get_pre(self, pref):
         match pref:
@@ -146,11 +156,19 @@ class Vaccin:
                 return '合計'
         return pref+'県'
 
+    def get_count_num(self):
+        """
+        接種　1回目、2 、、、n回目のnを返す
+        全国、都道府県数を返す
+        """
+        return (self.col, self.row)
+
 
 class PlotWidget(QWidget):
-    def __init__(self, Vaccin, parent=None):
+    def __init__(self, Vaccin, page, parent=None):
         super().__init__(parent)
         self.vaccin = Vaccin
+        self.page = page
         self.xpos = -1
         self.disp_lin = None
         self.disp_txt = None
@@ -161,8 +179,9 @@ class PlotWidget(QWidget):
         self.tooltip = QToolTip()
         self.fig = plt.Figure(figsize=(5, 4), dpi=100)
         self.ax = self.fig.add_axes([0.15, .15, .75, .78])
-        self.twin_ax = self.ax.twinx()  # y軸右側%を使うため
-        self.twin_ax.tick_params()
+        if self.page == 0:
+            self.twin_ax = self.ax.twinx()  # y軸右側%を使うため
+            self.twin_ax.tick_params()
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
         self.combobox = QComboBox(self)
@@ -192,7 +211,10 @@ class PlotWidget(QWidget):
         戻り値:str 日付、１回目、２回目、３回目摂取数
         """
         # wakutin = wakutin_sesshu(self.pref_no)  # ワクチン接触データ取得
-        wakutin = self.vaccin.vaccin_(self.pref_no)
+        if self.page == 0:
+            wakutin = self.vaccin.vaccin_(self.pref_no)
+        else:
+            wakutin = self.vaccin.vaccin_d(self.pref_no)
         xpos += LINUX_DATE
         xpos = int(xpos)
         ymd = pd.to_datetime(date.fromordinal(xpos))  # x軸yy-mm-dd:h:m:sを求める
@@ -209,14 +231,15 @@ class PlotWidget(QWidget):
         """
         if event.xdata is None:
             if self.xpos != -1:  # 前回表示あり->表示を消す
-                self.disp_txt.set_text('')
+                # self.disp_txt.set_text('')
                 self.disp_txt1.set_text('')
                 self.disp_lin.set_xdata(0)
+                self.tooltip.hideText()
                 self.xpos = -1
             else:
                 return
         else:
-            if self.disp_lin is None:   # 表示オブジェクトあれば
+            if self.disp_lin is None:   # 表示オブジェクトがなければ
                 # 表示オブジェクト作成
                 self.disp_lin = self.ax.axvline(
                     event.xdata, ls='--', lw=0.5, zorder=3)
@@ -226,45 +249,55 @@ class PlotWidget(QWidget):
                     "facecolor": 'w',
                     "alpha": 0.7,
                 }
-                self.disp_txt = self.ax.text(0.01, 0.02, '',
-                                             transform=self.fig.transFigure,
-                                             bbox=bbox,
-                                             fontsize=8,
-
-                                             )
                 self.disp_txt1 = self.ax.text(0.90, 0.02, '',
                                               transform=self.fig.transFigure,
                                               bbox=bbox,
                                               fontsize=8,
-
                                               )
             else:  # 表示オブジェクトあり->表示
-                day = int(event.xdata)
+                day = int(event.xdata+0.5)
                 bottom, top = self.vaccin.get_day_coodinate()
-                if bottom <= day <= top and 0 < event.ydata < 100:
-                    ymd, rep = self.get_point_data(day)
-                    if rep is not None:
-                        str0 = f'{ymd}'
-                        for i in range(3):
-                            str0 += f'\n{i+1}回 {int(rep[i+1]):,}'
-                        # self.disp_txt.set_text(str0)
-                        self.tooltip.showText(QCursor().pos(), str0)
-                        str0 = f'{ymd}'
-                        for i in range(3):
-                            str0 += f'\n{i+1}回 '
-                            str0 += f'{rep[i+1]/self.population*100.0: .2f}%'
-                        self.disp_txt1.set_text(str0)
-                        self.disp_lin.set_xdata(event.xdata)
+                if self.page == 0:
+                    if bottom <= day <= top and 0 < event.ydata < 100:
+                        ymd, rep = self.get_point_data(day)
+                        if rep is not None:  # カーソルのx軸の値がデータにあれば
+                            str0 = f'{ymd}'
+                            for i in range(3):
+                                str0 += f'\n{i+1}回 {int(rep[i+1]):,}'
+                            self.tooltip.showText(QCursor().pos(), str0)
+                            str0 = f'{ymd}'
+                            for i in range(3):
+                                str0 += f'\n{i+1}回 '
+                                str0 += f'{rep[i+1]/self.population*100.0: .2f}%'
+                            self.disp_txt1.set_text(str0)
+                            self.disp_lin.set_xdata(event.xdata)
+                            self.xpos = 0
+                        else:
+                            # self.disp_txt.set_text('')
+                            self.disp_txt1.set_text('')
+                            self.disp_lin.set_xdata(0)
+                            self.tooltip.hideText()
                     else:
-                        self.disp_txt.set_text('')
+                        # self.disp_txt.set_text('')
                         self.disp_txt1.set_text('')
                         self.disp_lin.set_xdata(0)
                         self.tooltip.hideText()
-                else:
-                    self.disp_txt.set_text('')
-                    self.disp_txt1.set_text('')
-                    self.disp_lin.set_xdata(0)
-                    self.tooltip.hideText()
+                else:   # page=1 の時
+                    if bottom <= day <= top and self.ax.get_ylim()[0] < event.ydata < self.ax.get_ylim()[1]:
+                        ymd, rep = self.get_point_data(day)
+                        if rep is not None:  # カーソルのx軸の値がデータにあれば
+                            str0 = f'{ymd}'
+                            for i in range(3):
+                                str0 += f'\n{i+1}回 {int(rep[i+1]):,}'
+                            self.tooltip.showText(QCursor().pos(), str0)
+                            self.disp_lin.set_xdata(event.xdata)
+                            self.xpos = 0
+                        else:
+                            self.disp_lin.set_xdata(0)
+                            self.tooltip.hideText()
+                    else:
+                        self.disp_lin.set_xdata(0)
+                        self.tooltip.hideText()
 
         self.canvas.draw()
         time.sleep(0.01)
@@ -281,7 +314,6 @@ class PlotWidget(QWidget):
             pref_no = pref_no.values[0]
         except IndexError:
             return
-        # print('result={}'.format(pref_no))
         self.draw1(pref_no, prefecture)
 
     def draw1(self, pref_no, prefecture):
@@ -298,18 +330,24 @@ class PlotWidget(QWidget):
         # 人口を求める
         self.population = popul["人"].values[0]
         self.label1.setText(f'人口:{self.population: ,}')
-        # print('人口={:,}'.format(population))
-        # print(df[pref_alphabet])
         self.ax.cla()
-        self.twin_ax.cla()
+        if self.page == 0:
+            self.twin_ax.cla()
         # wakutin = wakutin_sesshu(pref_no)  # ワクチン接触データ取得
-        wakutin = self.vaccin.vaccin_(pref_no)
+        if self.page == 0:
+            wakutin = self.vaccin.vaccin_(pref_no)
+        else:
+            wakutin = self.vaccin.vaccin_d(pref_no)
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%y-%m-%d'))
         self.ax.xaxis.set_major_locator(mdates.WeekdayLocator(
             byweekday=SU, interval=4, tz=None))
-        self.ax.set_ylim(-self.population*0.02, self.population*1.02)
-        self.ax.yaxis.set_major_formatter(
-            lambda x, pos=None: f'{int(x/10000):,}万')
+        if self.page == 0:
+            self.ax.set_ylim(-self.population*0.02, self.population*1.02)
+            self.ax.yaxis.set_major_formatter(
+                lambda x, pos=None: f'{int(x/10000):,}万')
+        else:
+            self.ax.yaxis.set_major_formatter(
+                lambda x, pos=None: f'{int(x):,}')
         mv = mtransforms.ScaledTranslation(0.1, 0.05, self.fig.dpi_scale_trans)
         for label in self.ax.xaxis.get_majorticklabels():
             label.set_ha('right')
@@ -318,25 +356,38 @@ class PlotWidget(QWidget):
             label.set_transform(label.get_transform() + mv)
         self.ax.set_title(f'接種回数({pref:s})', y=0.98)
         self.ax.set_ylabel('接種回数')
+        # グラフを描く
         la = []
-        for i in range(3):
-            l1, = self.ax.plot(wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
-            la.append(l1)
-        self.ax.legend(handles=[la[0], la[1], la[2]],
+        if self.page == 0:
+            for i in range(self.vaccin.get_count_num()[0]):
+                l1, = self.ax.plot(wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
+                la.append(l1)
+        else:
+            for i in range(self.vaccin.get_count_num()[0]):
+                x = self.vaccin.get_xaxis()
+                l1 = self.ax.bar(x, wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
+                la.append(l1)
+        la1 = []
+        for i in range(self.vaccin.get_count_num()[0]):
+            la1.append(la[i])
+        self.ax.legend(handles=la1,
                        loc='upper left', fontsize=9)
-        ylim = self.ax.get_ylim()
-        self.twin_ax.set_ylim(
-            ylim[0]/self.population*100., ylim[1]/self.population*100.)
-        self.twin_ax.yaxis.set_major_locator(MultipleLocator(10.))
-        self.twin_ax.yaxis.set_major_formatter(PercentFormatter(100.0))
-        self.twin_ax.set_ylabel('人口に対する%')
-        self.twin_ax.yaxis.set_zorder(2)
+
+        if self.page == 0:
+            ylim = self.ax.get_ylim()
+            self.twin_ax.set_ylim(ylim[0]/self.population*100.,
+                                  ylim[1]/self.population*100.)
+            self.twin_ax.yaxis.set_major_locator(MultipleLocator(10.))
+            self.twin_ax.yaxis.set_major_formatter(PercentFormatter(100.0))
+            self.twin_ax.set_ylabel('人口に対する%')
+            self.twin_ax.yaxis.set_zorder(2)
         self.ax.grid(axis='both', zorder=2)
         for label in self.ax.yaxis.get_majorticklabels():
             label.set_fontsize(9)
-        for label in self.twin_ax.yaxis.get_majorticklabels():
-            label.set_fontsize(9)
-        self.twin_ax.grid(axis='both', zorder=2)
+        if self.page == 0:
+            for label in self.twin_ax.yaxis.get_majorticklabels():
+                label.set_fontsize(9)
+            self.twin_ax.grid(axis='both', zorder=2)
         self.canvas.draw()
 
 
@@ -359,14 +410,16 @@ class VaccinTable(QWidget):
         self.tablew.setVerticalHeader(vheader)
         self.rownum = len(vaccin.result)
         self.tablew.setRowCount(self.rownum)
-        # colItem = ["都道府県名", 'first', 'second', 'third']
-        colItem1 = ["都道府県名", 'first', 'second',
-                    'third', 'percent1', 'percent2', 'percent3']
+        colItem1 = ["都道府県名"]
+        colLabel = ["都道府県名"]
+        for i in range(1, vaccin.get_count_num()[0]+1):
+            colItem1.append(i)
+            colLabel.append(f'{i}回目')
+        for i in range(1, vaccin.get_count_num()[0]+1):
+            colItem1.append(f'percent{i}')
+            colLabel.append(f'{i}回目(%)')
         self.colnum = len(colItem1)
         self.tablew.setColumnCount(self.colnum)
-
-        colLabel = ["都道府県名", '１回目', '２回目', '３回目',
-                    '１回目(%)', '２回目(%)', '３回目(%)']
         alignment = [Qt.AlignVCenter | Qt.AlignCenter,
                      Qt.AlignRight | Qt.AlignVCenter,
                      Qt.AlignRight | Qt.AlignVCenter,
@@ -377,9 +430,6 @@ class VaccinTable(QWidget):
         colNum = range(self.colnum)
         self.tablew.setHorizontalHeaderLabels(colLabel)
         for i in range(self.rownum):
-            # cellsize = QSize(-1, -1)
-            # for i in range(1):
-            # print(result.loc[i])
             for j in range(self.colnum):
                 s1 = vaccin.result.loc[i, colItem1[j]]
                 if type(s1) is not str:
@@ -390,11 +440,8 @@ class VaccinTable(QWidget):
                 else:
                     str1 = s1
                 item = QTableWidgetItem(str1)
-                # item.setSizeHint(cellsize)
                 item.setTextAlignment(alignment[j])
                 self.tablew.setItem(i, colNum[j], item)
-                # item = QTableWidgetItem(str(i*j))
-                # self.tablew.setItem(i, j, item)
 
 
 class TabDialog(QDialog):
@@ -402,7 +449,8 @@ class TabDialog(QDialog):
         super().__init__(parent)
         self.vaccin = Vaccin()
         tab_widget = QTabWidget()
-        tab_widget.addTab(PlotWidget(self.vaccin, self), "ワクチン接種日次推移")
+        tab_widget.addTab(PlotWidget(self.vaccin, 0, self), "ワクチン接種日次推移")
+        tab_widget.addTab(PlotWidget(self.vaccin, 1, self), "ワクチン接種日次回数")
         tab_widget.addTab(VaccinTable(self.vaccin, self), "ワクチン推移状況")
 
         main_layout = QVBoxLayout()
