@@ -51,30 +51,15 @@ class Vaccin:
                                          fill_value=0)
         # 日付別。都道府県(1回目、２回目、３回目)
         # self.pivot_sum = self.pivot.cumsum()
+        self.pivot = self.pivot.fillna(0).stack(1)
+        self.pivot[0] = self.pivot.sum(axis=1)
+        self.pivot = self.pivot.unstack()
+        self.pivot_cumsum = self.pivot.cumsum()
 
-        self.pivot_all = self.df.pivot_table(index='date',
-                                             columns='status',
-                                             values='count',
-                                             aggfunc=np.sum,
-                                             fill_value=0)
         # 日付別、全国(1回目、２回目、３回目)
-        self.col = len(self.pivot_all.columns)  # 接種回数
-        a = np.zeros(self.col).astype(int)
-        b = np.linspace(1, 3, 3).astype(int)
-        arrays = [a, b]
-        a = self.pivot.reset_index()
-        z = self.pivot_all.to_numpy()
-        z = pd.DataFrame(z, columns=arrays)
-        self.pivot = pd.concat([z, a], axis=1)  # 全国と都道府県を一つのテーブルに
-        self.pivot.set_index("date", inplace=True)
-        self.pivot_cumsum = self.pivot.cumsum()  # 日々の累計()
-        # 現在の１回目、２回目、３回目の都道府県別、全国接種累計
-        a = self.pivot_cumsum.reset_index()
-        a = a.loc[len(self.pivot_cumsum)-1]
-        a = a.to_frame().to_numpy()[1:]
-        self.row = int(len(a)/self.col)  # 都道府県及び全国の数
-        a = a.reshape([self.row, self.col]).astype(int)
-        a = pd.DataFrame(a, columns=arrays)[0]
+        self.col = len(self.pivot[0].columns)  # 接種回数
+        # self.row = len(self.pivot[0].columns)
+
         # 全国、都道府県の人口を取得
         url = 'https://www.soumu.go.jp/main_content/000762463.xlsx'
         self.po = pd.read_excel(url,
@@ -82,23 +67,15 @@ class Vaccin:
         self.po1 = self.po[self.po["性別"] == "計"][['都道府県名', '人']]
 
         self.po1 = self.po1.reset_index()[['都道府県名', '人']]
-        self.result = pd.concat([a, self.po1], axis=1)
+        b = self.pivot_cumsum.tail(1).stack(0)
+        b = b.reset_index()[[1, 2, 3]]
+        self.result = pd.concat([b, self.po1], axis=1)
         for i in range(1, self.col+1):
             str0 = f'percent{i}'
             self.result[str0] = self.result[i]/self.result['人']*100
 
         self.dpref = pd.read_csv("prefecture_num.csv",
                                  delimiter=',')
-
-    def get_po(self):
-        return self.po
-
-    def get_len(self):
-        """
-        データ長を求める
-        戻り値:int データ長
-        """
-        return len(self.pivot)
 
     def get_day(self):
         """
@@ -159,9 +136,8 @@ class Vaccin:
     def get_count_num(self):
         """
         接種　1回目、2 、、、n回目のnを返す
-        全国、都道府県数を返す
         """
-        return (self.col, self.row)
+        return self.col
 
 
 class PlotWidget(QWidget):
@@ -359,16 +335,16 @@ class PlotWidget(QWidget):
         # グラフを描く
         la = []
         if self.page == 0:
-            for i in range(self.vaccin.get_count_num()[0]):
+            for i in range(self.vaccin.get_count_num()):
                 l1, = self.ax.plot(wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
                 la.append(l1)
         else:
-            for i in range(self.vaccin.get_count_num()[0]):
+            for i in range(self.vaccin.get_count_num()):
                 x = self.vaccin.get_xaxis()
                 l1 = self.ax.bar(x, wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
                 la.append(l1)
         la1 = []
-        for i in range(self.vaccin.get_count_num()[0]):
+        for i in range(self.vaccin.get_count_num()):
             la1.append(la[i])
         self.ax.legend(handles=la1,
                        loc='upper left', fontsize=9)
@@ -412,10 +388,10 @@ class VaccinTable(QWidget):
         self.tablew.setRowCount(self.rownum)
         colItem1 = ["都道府県名"]
         colLabel = ["都道府県名"]
-        for i in range(1, vaccin.get_count_num()[0]+1):
+        for i in range(1, vaccin.get_count_num()+1):
             colItem1.append(i)
             colLabel.append(f'{i}回目')
-        for i in range(1, vaccin.get_count_num()[0]+1):
+        for i in range(1, vaccin.get_count_num()+1):
             colItem1.append(f'percent{i}')
             colLabel.append(f'{i}回目(%)')
         self.colnum = len(colItem1)
@@ -468,7 +444,12 @@ class HelpDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.layout = QVBoxLayout()
-        message = QLabel('By Y.Kimura 2022 April')
+        message = QLabel('データの出展元はデジタル庁です。\n'
+                         'https://data.vrs.digital.go.jp'
+                         '/vaccination/opendata/latest/prefecture.ndjson\n'
+                         '人口のデータ:\n'
+                         'https://www.soumu.go.jp/main_content/000762463.xlsx\n'
+                         '_/_/_/_/ 2020/4/?? _/_/_/_/ ')
         self.layout.addWidget(message)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)

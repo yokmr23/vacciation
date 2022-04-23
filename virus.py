@@ -298,7 +298,10 @@ class HelpDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.layout = QVBoxLayout()
-        message = QLabel('By Y.Kimura 2022 April')
+        message = QLabel('データの出展元は厚生労働省です。\n'
+                         'https://covid19.mhlw.go.jp/public/opendata/'
+                         'newly_confirmed_cases_daily.csv\n\n'
+                         '            2020/4/??')
         self.layout.addWidget(message)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
