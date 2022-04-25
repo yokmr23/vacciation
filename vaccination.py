@@ -73,7 +73,10 @@ class Vaccin:
         for i in range(1, self.col+1):
             str0 = f'percent{i}'
             self.result[str0] = self.result[i]/self.result['人']*100
-
+        self.result.sort_values(
+            by=['percent3', 'percent2', 'percent1'],
+            ascending=False, inplace=True)
+        self.result.reset_index(inplace=True)
         self.dpref = pd.read_csv("prefecture_num.csv",
                                  delimiter=',')
 
@@ -244,7 +247,8 @@ class PlotWidget(QWidget):
                             str0 = f'{ymd}'
                             for i in range(3):
                                 str0 += f'\n{i+1}回 '
-                                str0 += f'{rep[i+1]/self.population*100.0: .2f}%'
+                                str0 += f'{rep[i+1]/self.population*100.0:\
+                                           .2f}%'
                             self.disp_txt1.set_text(str0)
                             self.disp_lin.set_xdata(event.xdata)
                             self.xpos = 0
@@ -259,7 +263,9 @@ class PlotWidget(QWidget):
                         self.disp_lin.set_xdata(0)
                         self.tooltip.hideText()
                 else:   # page=1 の時
-                    if bottom <= day <= top and self.ax.get_ylim()[0] < event.ydata < self.ax.get_ylim()[1]:
+                    if bottom <= day <= top and\
+                        self.ax.get_ylim()[0]\
+                            < event.ydata < self.ax.get_ylim()[1]:
                         ymd, rep = self.get_point_data(day)
                         if rep is not None:  # カーソルのx軸の値がデータにあれば
                             str0 = f'{ymd}'
@@ -333,20 +339,12 @@ class PlotWidget(QWidget):
         self.ax.set_title(f'接種回数({pref:s})', y=0.98)
         self.ax.set_ylabel('接種回数')
         # グラフを描く
-        la = []
-        if self.page == 0:
-            for i in range(self.vaccin.get_count_num()):
-                l1, = self.ax.plot(wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
-                la.append(l1)
-        else:
-            for i in range(self.vaccin.get_count_num()):
-                x = self.vaccin.get_xaxis()
-                l1 = self.ax.bar(x, wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
-                la.append(l1)
-        la1 = []
+        la = []  # legend ラベル用
         for i in range(self.vaccin.get_count_num()):
-            la1.append(la[i])
-        self.ax.legend(handles=la1,
+            x = self.vaccin.pivot.index
+            l1 = self.ax.bar(x, wakutin[i+1], label=f'{i+1}回目', zorder=2.8)
+            la.append(l1)
+        self.ax.legend(handles=la,
                        loc='upper left', fontsize=9)
 
         if self.page == 0:
@@ -357,13 +355,14 @@ class PlotWidget(QWidget):
             self.twin_ax.yaxis.set_major_formatter(PercentFormatter(100.0))
             self.twin_ax.set_ylabel('人口に対する%')
             self.twin_ax.yaxis.set_zorder(2)
-        self.ax.grid(axis='both', zorder=2)
+        self.ax.grid(axis='both', zorder=1)
         for label in self.ax.yaxis.get_majorticklabels():
             label.set_fontsize(9)
         if self.page == 0:
             for label in self.twin_ax.yaxis.get_majorticklabels():
                 label.set_fontsize(9)
-            self.twin_ax.grid(axis='both', zorder=2)
+            self.twin_ax.grid(c='grey', alpha=0.5, ls='--',
+                              lw=0.5, axis='y', zorder=1)
         self.canvas.draw()
 
 
@@ -444,12 +443,13 @@ class HelpDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.layout = QVBoxLayout()
-        message = QLabel('データの出展元はデジタル庁です。\n'
-                         'https://data.vrs.digital.go.jp'
-                         '/vaccination/opendata/latest/prefecture.ndjson\n'
-                         '人口のデータ:\n'
-                         'https://www.soumu.go.jp/main_content/000762463.xlsx\n'
-                         '_/_/_/_/ 2020/4/?? _/_/_/_/ ')
+        message = QLabel(
+            'データの出展元はデジタル庁です。\n'
+            'https://data.vrs.digital.go.jp'
+            '/vaccination/opendata/latest/prefecture.ndjson\n'
+            '人口のデータ:\n'
+            'https://www.soumu.go.jp/main_content/000762463.xlsx\n'
+            '2020/4/??')
         self.layout.addWidget(message)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
