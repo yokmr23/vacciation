@@ -15,7 +15,7 @@
 * extensions
 
 ```zsh
-$pip install pyside6 matplotlib numpy pandas
+$pip install pyside6 matplotlib numpy pandas openpyxl
 ```
 
 * ソースコード　vaccination.py
