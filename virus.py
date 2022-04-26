@@ -279,6 +279,13 @@ class PlotWidget(QWidget):
         self.canvas.draw()
 
     def get_range(self, length, id, v):
+        """
+        グラフ表示データのx軸の最大、最小を求める
+        length: データ長、
+        id: ボタン番号(0:7日,1:一ヶ月,2:3ヶ月,3:1年,4:全部)
+        v:スライダ位置　0:左端　100:右端
+        戻り値:データの始まり位置、データの終わり位置
+        """
         if id < 4:
             s = pd.Series([7, 30, 90, 365], index=[0, 1, 2, 3])
             s = s[id]
