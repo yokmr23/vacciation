@@ -247,8 +247,7 @@ class PlotWidget(QWidget):
                             str0 = f'{ymd}'
                             for i in range(3):
                                 str0 += f'\n{i+1}回 '
-                                str0 += f'{rep[i+1]/self.population*100.0:\
-                                           .2f}%'
+                                str0 += f'{rep[i+1]/self.population*100.0:.2f}%'
                             self.disp_txt1.set_text(str0)
                             self.disp_lin.set_xdata(event.xdata)
                             self.xpos = 0
