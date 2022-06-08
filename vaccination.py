@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.transforms as mtransforms
 from matplotlib.dates import SU
-from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.ticker import MultipleLocator
 from matplotlib.ticker import PercentFormatter
@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 LINUX_DATE = date(1970, 1, 1).toordinal()
+# plt.rcParams['font.family'] = 'Sawarabi Mincho'
 
 
 class Vaccin:
@@ -58,6 +59,10 @@ class Vaccin:
 
         # 日付別、全国(1回目、２回目、３回目)
         self.col = len(self.pivot[0].columns)  # 接種回数
+        key = []
+        for i in range(1, self.col+1):
+            key.append(i)
+        # print(f'key={key}')
         # self.row = len(self.pivot[0].columns)
 
         # 全国、都道府県の人口を取得
@@ -68,7 +73,8 @@ class Vaccin:
 
         self.po1 = self.po1.reset_index()[['都道府県名', '人']]
         b = self.pivot_cumsum.tail(1).stack(0)
-        b = b.reset_index()[[1, 2, 3]]
+        # b = b.reset_index()[[1, 2, 3, 4]]
+        b = b.reset_index()[key]
         self.result = pd.concat([b, self.po1], axis=1)
         for i in range(1, self.col+1):
             str0 = f'percent{i}'
@@ -140,6 +146,7 @@ class Vaccin:
         """
         接種　1回目、2 、、、n回目のnを返す
         """
+        # print(f'接種回数={self.col}')
         return self.col
 
 
@@ -212,7 +219,7 @@ class PlotWidget(QWidget):
             if self.xpos != -1:  # 前回表示あり->表示を消す
                 # self.disp_txt.set_text('')
                 self.disp_txt1.set_text('')
-                self.disp_lin.set_xdata(0)
+                # self.disp_lin.set_xdata(0)
                 self.tooltip.hideText()
                 self.xpos = -1
             else:
@@ -241,11 +248,11 @@ class PlotWidget(QWidget):
                         ymd, rep = self.get_point_data(day)
                         if rep is not None:  # カーソルのx軸の値がデータにあれば
                             str0 = f'{ymd}'
-                            for i in range(3):
+                            for i in range(self.vaccin.get_count_num()):
                                 str0 += f'\n{i+1}回 {int(rep[i+1]):,}'
                             self.tooltip.showText(QCursor().pos(), str0)
                             str0 = f'{ymd}'
-                            for i in range(3):
+                            for i in range(self.vaccin.get_count_num()):
                                 str0 += f'\n{i+1}回 '
                                 str0 += f'{rep[i+1]/self.population*100.0:.2f}%'
                             self.disp_txt1.set_text(str0)
@@ -268,7 +275,7 @@ class PlotWidget(QWidget):
                         ymd, rep = self.get_point_data(day)
                         if rep is not None:  # カーソルのx軸の値がデータにあれば
                             str0 = f'{ymd}'
-                            for i in range(3):
+                            for i in range(self.vaccin.get_count_num()):
                                 str0 += f'\n{i+1}回 {int(rep[i+1]):,}'
                             self.tooltip.showText(QCursor().pos(), str0)
                             self.disp_lin.set_xdata(event.xdata)
@@ -383,6 +390,7 @@ class VaccinTable(QWidget):
         vheader.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         self.tablew.setVerticalHeader(vheader)
         self.rownum = len(vaccin.result)
+        # print(self.rownum)
         self.tablew.setRowCount(self.rownum)
         colItem1 = ["都道府県名"]
         colLabel = ["都道府県名"]
@@ -392,19 +400,29 @@ class VaccinTable(QWidget):
         for i in range(1, vaccin.get_count_num()+1):
             colItem1.append(f'percent{i}')
             colLabel.append(f'{i}回目(%)')
+        # print(colItem1)
+        # print(colLabel)
         self.colnum = len(colItem1)
+        # print(f'colnum={self.colnum}')
         self.tablew.setColumnCount(self.colnum)
-        alignment = [Qt.AlignVCenter | Qt.AlignCenter,
-                     Qt.AlignRight | Qt.AlignVCenter,
-                     Qt.AlignRight | Qt.AlignVCenter,
-                     Qt.AlignRight | Qt.AlignVCenter,
-                     Qt.AlignRight | Qt.AlignVCenter,
-                     Qt.AlignRight | Qt.AlignVCenter,
-                     Qt.AlignRight | Qt.AlignVCenter]
+        # alignment = [Qt.AlignVCenter | Qt.AlignCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             Qt.AlignRight | Qt.AlignVCenter,
+        #             ]
         colNum = range(self.colnum)
+        alignment = [Qt.AlignVCenter | Qt.AlignCenter]
+        for i in range(self.colnum):
+            alignment.append(Qt.AlignRight | Qt.AlignVCenter)
         self.tablew.setHorizontalHeaderLabels(colLabel)
         for i in range(self.rownum):
             for j in range(self.colnum):
+                # print(f'colnum={self.colnum} j={j}')
                 s1 = vaccin.result.loc[i, colItem1[j]]
                 if type(s1) is not str:
                     if type(s1) is np.int64:
