@@ -1,34 +1,22 @@
-import pandas as pd
 import sys
 from datetime import date
-from matplotlib import pyplot as plt
-from matplotlib.dates import SU
+
 import matplotlib.dates as mdates
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, Slot
+import pandas as pd
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_qtagg import (FigureCanvas,
+                                               NavigationToolbar2QT)
+from matplotlib.dates import SU, DayLocator, WeekdayLocator
 from PySide6 import QtCore
-from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import (
-    QApplication,
-    QWidget,
-    QComboBox,
-    QLabel,
-    QButtonGroup,
-    QGridLayout,
-    QPushButton,
-    QSlider,
-    QToolTip,
-    QMainWindow,
-    QToolBar,
-    QDialog,
-    QDialogButtonBox,
-    QVBoxLayout,
-)
-from matplotlib.dates import DayLocator, WeekdayLocator
+from PySide6.QtCore import Signal, Slot
+from PySide6.QtGui import QAction, QCursor
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QDialog,
+                               QDialogButtonBox, QGridLayout, QLabel,
+                               QMainWindow, QPushButton, QSlider, QToolBar,
+                               QToolTip, QVBoxLayout, QWidget)
 
 LINUX_DATE = date(1970, 1, 1).toordinal()
+# plt.rcParams['font.family'] = ['Sawarabi Mincho', 'RocknRoll One']
 
 df = pd.read_csv(
     'https://covid19.mhlw.go.jp/public/opendata/'
@@ -255,7 +243,7 @@ class PlotWidget(QWidget):
         for item in label0:
             item.set_ha('right')
 
-        self.ax.set_title(f'日々の感染者数({prefecture})')
+        self.ax.set_title(f'日日の感染者数({prefecture})')
         self.ax.set_ylabel('感染者数')
         # グラフ表示データ範囲を求める
         xmax, xmin = self.get_range(len(df), id, slider_value)

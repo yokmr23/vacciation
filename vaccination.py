@@ -1,36 +1,25 @@
-from datetime import date
-import pandas as pd
-import numpy as np
-import time
 import sys
-import matplotlib.pyplot as plt
+import time
+from datetime import date
+
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
-from matplotlib.dates import SU
+import numpy as np
+import pandas as pd
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-from matplotlib.ticker import MultipleLocator
-from matplotlib.ticker import PercentFormatter
-from PySide6.QtGui import QAction
+from matplotlib.dates import SU
+from matplotlib.ticker import MultipleLocator, PercentFormatter
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QCursor
+from PySide6.QtGui import QAction, QCursor
 from PySide6.QtWidgets import (
-    QApplication,
-    QWidget,
-    QVBoxLayout,
-    QToolBar,
-    QComboBox,
-    QLabel,
-    QTableWidget,
-    QTableWidgetItem,
-    QDialog,
-    QTabWidget,
-    QMainWindow,
-    QToolTip,
-    QGridLayout,
-    QDialogButtonBox,
-)
+    QApplication, QComboBox, QDialog,
+    QDialogButtonBox, QGridLayout, QLabel,
+    QMainWindow, QTableWidget, QTableWidgetItem,
+    QTabWidget, QToolBar, QToolTip, QVBoxLayout,
+    QWidget)
 
 LINUX_DATE = date(1970, 1, 1).toordinal()
 # plt.rcParams['font.family'] = 'Sawarabi Mincho'
@@ -46,10 +35,11 @@ class Vaccin:
             'https://data.vrs.digital.go.jp'
             '/vaccination/opendata/latest/prefecture.ndjson',
             lines=True, convert_dates=True)
-        self.pivot = self.df.pivot_table(index='date',
-                                         columns=['prefecture', 'status'],
-                                         values='count', aggfunc=np.sum,
-                                         fill_value=0)
+        self.pivot = self.df.pivot_table(
+            index='date',
+            columns=['prefecture', 'status'],
+            values='count', aggfunc=np.sum,
+            fill_value=0)
         # 日付別。都道府県(1回目、２回目、３回目)
         # self.pivot_sum = self.pivot.cumsum()
         self.pivot = self.pivot.fillna(0).stack(1)
@@ -57,7 +47,7 @@ class Vaccin:
         self.pivot = self.pivot.unstack()
         self.pivot_cumsum = self.pivot.cumsum()
 
-        # 日付別、全国(1回目、２回目、３回目)
+        # 日付別、全国(1回目、２回目、３回目、・、・、・)
         self.col = len(self.pivot[0].columns)  # 接種回数
         key = []
         for i in range(1, self.col+1):
@@ -160,7 +150,7 @@ class PlotWidget(QWidget):
         self.disp_txt = None
         self.disp_txt1 = None
         self.pref_no = -1
-        self.population = -1
+        self.pop = -1
         self.vaccin = Vaccin
         self.tooltip = QToolTip()
         self.fig = plt.Figure(figsize=(5, 4), dpi=100)
@@ -235,11 +225,12 @@ class PlotWidget(QWidget):
                     "facecolor": 'w',
                     "alpha": 0.7,
                 }
-                self.disp_txt1 = self.ax.text(0.90, 0.02, '',
-                                              transform=self.fig.transFigure,
-                                              bbox=bbox,
-                                              fontsize=8,
-                                              )
+                self.disp_txt1 = self.ax.text(
+                    0.90, 0.02, '',
+                    transform=self.fig.transFigure,
+                    bbox=bbox,
+                    fontsize=8,
+                )
             else:  # 表示オブジェクトあり->表示
                 day = int(event.xdata+0.5)
                 bottom, top = self.vaccin.get_day_coodinate()
@@ -254,7 +245,7 @@ class PlotWidget(QWidget):
                             str0 = f'{ymd}'
                             for i in range(self.vaccin.get_count_num()):
                                 str0 += f'\n{i+1}回 '
-                                str0 += f'{rep[i+1]/self.population*100.0:.2f}%'
+                                str0 += f'{rep[i+1]/self.pop*100.0:.2f}%'
                             self.disp_txt1.set_text(str0)
                             self.disp_lin.set_xdata(event.xdata)
                             self.xpos = 0
@@ -313,11 +304,11 @@ class PlotWidget(QWidget):
         self.disp_lin = None
         self.label.setText(f'都道府県コード:{pref_no: ,}')
         pref = self.vaccin.get_pre(prefecture)
-        popul = self.vaccin.po[(self.vaccin.po["都道府県名"] == pref)
-                               & (self.vaccin.po["性別"] == "計")]
+        pop = self.vaccin.po[(self.vaccin.po["都道府県名"] == pref)
+                             & (self.vaccin.po["性別"] == "計")]
         # 人口を求める
-        self.population = popul["人"].values[0]
-        self.label1.setText(f'人口:{self.population: ,}')
+        self.pop = pop["人"].values[0]
+        self.label1.setText(f'人口:{self.pop: ,}')
         self.ax.cla()
         if self.page == 0:
             self.twin_ax.cla()
@@ -330,7 +321,7 @@ class PlotWidget(QWidget):
         self.ax.xaxis.set_major_locator(mdates.WeekdayLocator(
             byweekday=SU, interval=4, tz=None))
         if self.page == 0:
-            self.ax.set_ylim(-self.population*0.02, self.population*1.02)
+            self.ax.set_ylim(-self.pop*0.02, self.pop*1.02)
             self.ax.yaxis.set_major_formatter(
                 lambda x, pos=None: f'{int(x/10000):,}万')
         else:
@@ -355,8 +346,8 @@ class PlotWidget(QWidget):
 
         if self.page == 0:
             ylim = self.ax.get_ylim()
-            self.twin_ax.set_ylim(ylim[0]/self.population*100.,
-                                  ylim[1]/self.population*100.)
+            self.twin_ax.set_ylim(ylim[0]/self.pop*100.,
+                                  ylim[1]/self.pop*100.)
             self.twin_ax.yaxis.set_major_locator(MultipleLocator(10.))
             self.twin_ax.yaxis.set_major_formatter(PercentFormatter(100.0))
             self.twin_ax.set_ylabel('人口に対する%')
