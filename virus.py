@@ -1,6 +1,7 @@
 import sys
 from datetime import date
 
+import matplotlib
 import matplotlib.dates as mdates
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -14,6 +15,8 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QDialog,
                                QDialogButtonBox, QGridLayout, QLabel,
                                QMainWindow, QPushButton, QSlider, QToolBar,
                                QToolTip, QVBoxLayout, QWidget)
+
+matplotlib.use('qtagg')
 
 LINUX_DATE = date(1970, 1, 1).toordinal()
 # plt.rcParams['font.family'] = ['Sawarabi Mincho', 'RocknRoll One']

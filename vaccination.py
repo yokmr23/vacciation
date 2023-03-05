@@ -2,24 +2,26 @@ import sys
 import time
 from datetime import date
 
+import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
 import pandas as pd
-from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from matplotlib.backends.backend_qtagg import FigureCanvas
+from matplotlib.backends.backend_qtagg import (FigureCanvas,
+                                               NavigationToolbar2QT)
 from matplotlib.dates import SU
 from matplotlib.ticker import MultipleLocator, PercentFormatter
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QAction, QCursor
-from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog,
-    QDialogButtonBox, QGridLayout, QLabel,
-    QMainWindow, QTableWidget, QTableWidgetItem,
-    QTabWidget, QToolBar, QToolTip, QVBoxLayout,
-    QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QDialog,
+                               QDialogButtonBox, QGridLayout, QLabel,
+                               QMainWindow, QTableWidget, QTableWidgetItem,
+                               QTabWidget, QToolBar, QToolTip, QVBoxLayout,
+                               QWidget)
+
+matplotlib.use('qtagg')
 
 LINUX_DATE = date(1970, 1, 1).toordinal()
 # plt.rcParams['font.family'] = 'Sawarabi Mincho'
